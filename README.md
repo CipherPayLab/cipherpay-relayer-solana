@@ -26,8 +26,8 @@ Sync with other projects
     SELECT k, LENGTH(v) AS len, HEX(v) AS hex FROM merkle_meta WHERE tree_id = 1 AND k = 'root';
     SELECT k, LENGTH(v) AS len, HEX(v) AS hex FROM merkle_meta WHERE tree_id = 1 AND k = 'next_index';
 
-    SELECT _ FROM nodes_all WHERE node_layer=0 limit 5;
-    SELECT _ FROM nodes_all WHERE node_layer=16 limit 5;
+    SELECT * FROM nodes_all WHERE node_layer=0 limit 5;
+    SELECT * FROM nodes_all WHERE node_layer=16 limit 5;
 
 12. debug
     solana program show BCrt2kn5HR4B7CHEMSBacekhzVTKYhzAQAB5YNkr5kJf
