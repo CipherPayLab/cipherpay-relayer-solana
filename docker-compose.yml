@@ -2,15 +2,17 @@ version: "3.9"
 services:
   db:
     image: mysql:8.0
+    container_name: cipherpay-relayer-solana
     restart: unless-stopped
     ports:
       - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: cipherpay
+      MYSQL_DATABASE: cipherpay_relayer_solana
       MYSQL_USER: cipherpay
       MYSQL_PASSWORD: cipherpay
+      MYSQL_ROOT_PASSWORD: root
     volumes:
       - dbdata:/var/lib/mysql
+      - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
 volumes:
   dbdata:

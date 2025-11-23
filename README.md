@@ -2,34 +2,36 @@
 
 Headless relayer for the **CipherPay protocol** on Solana.
 
+# Usage
+
 Sync with other projects
 
 1. update program id
 2. copy idl file from cipherpay-anchor/target/idl/cipherpay_anchor.json to cipherpay-relayer-solana/src/idl
 3. copy \*\_vkey.json from cipherpay-circuits/build/{deposit,transfer,withdraw}/verification_key.json to cipherpay-relayer-solana/src/zk/circuits and cipherpay-relayer-solana/tests/e2e/{deposit,transfer,withdraw}/proof
-   npm run copy-keys-to-relayer-and-anchor under cipherpay-circuits
+   npm run copy-vk-to-relayer under cipherpay-circuits
 4. copy _\_final.zkey and _.wasm from cipherpay-circuits/build/{deposit,transfer,withdraw}/{deposit_js, transfer_js,withdraw_js}/ to cipherpay-relayer-solana/tests/e2e/{deposit,transfer,withdraw}/proof
-   npm run copy-proofs-artifacts-to-relayer under cipherpay-circuits
+   npm run copy-proof-artifacts-to-relayer under cipherpay-circuits
 5. npm run build
 6. start database
    docker compose up -d db
    npm run migrate : Create tables and views by using src/db/migrations/001_init.sql
    npm run init-tree : Initialize all tables
 7. npm run dev
-8. DEPOSIT_INDEX=1 npm run test:e2e:depositata
-9. TRANSFER_INDEX=1 npm run test:e2e:transferata
-10. WITHDRAW_INDEX=1 npm run test:e2e:withdrawata
+8. INDEX=1 npm run test:e2e:depositata
+9. INDEX=1 npm run test:e2e:transferata
+10. INDEX=1 npm run test:e2e:withdrawata
 11. check db
     SELECT k, LENGTH(v) AS len, HEX(v) AS hex FROM merkle_meta WHERE tree_id = 1 AND k = 'roots_next_slot';
     SELECT k, LENGTH(v) AS len, HEX(v) AS hex FROM merkle_meta WHERE tree_id = 1 AND k = 'root';
     SELECT k, LENGTH(v) AS len, HEX(v) AS hex FROM merkle_meta WHERE tree_id = 1 AND k = 'next_index';
 
-    SELECT _ FROM nodes_all WHERE node_layer=0 limit 5;
-    SELECT _ FROM nodes_all WHERE node_layer=16 limit 5;
+    SELECT * FROM nodes_all WHERE node_layer=0 limit 5;
+    SELECT * FROM nodes_all WHERE node_layer=16 limit 5;
 
 12. debug
-    solana program show 56nPWpjBLbh1n8vvUdCYGmg3dS5zNwLW9UhCg4MMpBmN
-    solana logs 56nPWpjBLbh1n8vvUdCYGmg3dS5zNwLW9UhCg4MMpBmN -u localhost
+    solana program show BCrt2kn5HR4B7CHEMSBacekhzVTKYhzAQAB5YNkr5kJf
+    solana logs BCrt2kn5HR4B7CHEMSBacekhzVTKYhzAQAB5YNkr5kJf -u localhost
 
 ---
 
@@ -65,7 +67,8 @@ npm install
 Bring up MySQL with Docker (recommended):
 
 ```bash
-docker compose up -d
+docker compose up -d db
+docker ps
 ```
 
 Create database & user matching `.env`.

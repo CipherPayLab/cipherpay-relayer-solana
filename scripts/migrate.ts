@@ -39,15 +39,28 @@ async function withConn<T>(fn: (conn: any) => Promise<T>) {
   const conn = await pool.getConnection();
   try {
     // Keep this session alive and fast for bulk ops
-    await conn.query("SET SESSION wait_timeout=31536000, interactive_timeout=31536000");
-    await conn.query("SET SESSION foreign_key_checks = 0");
-    await conn.query("SET SESSION unique_checks = 0");
-    await conn.query("SET SESSION sql_log_bin = 0");
+    // These may fail without SUPER privileges - that's okay, continue anyway
+    try {
+      await conn.query("SET SESSION wait_timeout=31536000, interactive_timeout=31536000");
+    } catch {}
+    try {
+      await conn.query("SET SESSION foreign_key_checks = 0");
+    } catch {}
+    try {
+      await conn.query("SET SESSION unique_checks = 0");
+    } catch {}
+    try {
+      await conn.query("SET SESSION sql_log_bin = 0");
+    } catch {}
     return await fn(conn);
   } finally {
     try {
       await conn.query("SET SESSION foreign_key_checks = 1");
+    } catch {}
+    try {
       await conn.query("SET SESSION unique_checks = 1");
+    } catch {}
+    try {
       await conn.query("SET SESSION sql_log_bin = 1");
     } catch {}
     conn.release();
