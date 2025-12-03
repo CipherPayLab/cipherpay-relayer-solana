@@ -81,6 +81,10 @@ export type WithdrawBinArgs = {
   tokenMint: string; // base58
   proofBytes: Buffer; // 256 bytes
   publicInputsBytes: Buffer; // 7*32 bytes
+  target?: {
+    recipientOwner?: string; // base58
+    recipientTokenAccount?: string; // base58
+  };
 };
 
 type SubmitWithinOpts = {
@@ -554,6 +558,7 @@ class SolanaRelayer {
       mint,
       proofBytes: args.proofBytes,
       publicInputsBytes: args.publicInputsBytes,
+      target: args.target,
     });
     return { signature: sig };
   }
