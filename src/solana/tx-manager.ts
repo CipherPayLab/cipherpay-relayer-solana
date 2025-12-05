@@ -203,7 +203,8 @@ export default class TxManager {
     payer: PublicKey,
     mint: PublicKey,
     vaultOwnerPda: PublicKey,
-    rootCachePda: PublicKey
+    rootCachePda: PublicKey,
+    recipientOwner?: PublicKey
   ): Promise<{
     ixs: TransactionInstruction[];
     recipientAta: PublicKey;
@@ -211,9 +212,10 @@ export default class TxManager {
   }> {
     const ixs: TransactionInstruction[] = [];
 
+    const recipientOwnerKey = recipientOwner || payer;
     const recipientAta = getAssociatedTokenAddressSync(
       mint,
-      payer,
+      recipientOwnerKey,
       false,
       TOKEN_PROGRAM_ID,
       ASSOCIATED_TOKEN_PROGRAM_ID
@@ -234,7 +236,7 @@ export default class TxManager {
         createAssociatedTokenAccountIdempotentInstruction(
           payer,
           recipientAta,
-          payer,
+          recipientOwnerKey,
           mint,
           TOKEN_PROGRAM_ID,
           ASSOCIATED_TOKEN_PROGRAM_ID
@@ -488,6 +490,10 @@ export default class TxManager {
     proofBytes: Buffer; // 256
     publicInputsBytes: Buffer; // 7 * 32  (NULLIFIER, ROOT, OWNER_LO, OWNER_HI, RECIPIENT_PK, AMOUNT, TOKEN_ID)
     computeUnitLimit?: number;
+    target?: {
+      recipientOwner?: string; // base58
+      recipientTokenAccount?: string; // base58
+    };
   }): Promise<string> {
     const payer = this.provider.wallet.publicKey;
 
@@ -509,16 +515,37 @@ export default class TxManager {
     const vaultOwnerPda = pda([VAULT_SEED], this.programId);
     const nullifierPda = pda([NULLIFIER_SEED, nullifierBuf], this.programId);
 
+    // Use provided recipientOwner or fall back to payer
+    const recipientOwner = args.target?.recipientOwner
+      ? new PublicKey(args.target.recipientOwner)
+      : payer;
+
     const {
       ixs: setupIxs,
-      recipientAta,
+      recipientAta: derivedRecipientAta,
       vaultAta,
     } = await this.buildWithdrawSetupIxs(
       payer,
       args.mint,
       vaultOwnerPda,
-      rootCachePda
+      rootCachePda,
+      recipientOwner
     );
+
+    // Use provided recipientTokenAccount or the derived one
+    let recipientAta: PublicKey;
+    if (args.target?.recipientTokenAccount) {
+      recipientAta = new PublicKey(args.target.recipientTokenAccount);
+      // Ensure the provided ATA matches the derived one
+      if (!derivedRecipientAta.equals(recipientAta)) {
+        throw new Error(
+          `recipientTokenAccount mismatch: provided ${recipientAta.toBase58()}, ` +
+          `but derived ${derivedRecipientAta.toBase58()} for recipientOwner ${recipientOwner.toBase58()}`
+        );
+      }
+    } else {
+      recipientAta = derivedRecipientAta;
+    }
 
     const cuUnits = Number(process.env.CU_LIMIT ?? 800_000);
     const cuIx = ComputeBudgetProgram.setComputeUnitLimit({
@@ -534,7 +561,7 @@ export default class TxManager {
         nullifierRecord: nullifierPda,
         vaultPda: vaultOwnerPda,
         vaultTokenAccount: vaultAta,
-        recipientOwner: payer,
+        recipientOwner: recipientOwner,
         recipientTokenAccount: recipientAta,
         tokenMint: args.mint,
         systemProgram: SystemProgram.programId,
