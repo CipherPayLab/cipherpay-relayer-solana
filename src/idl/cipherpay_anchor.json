@@ -219,6 +219,14 @@
           "writable": true
         },
         {
+          "name": "user_token_account",
+          "docs": [
+            "User's token account (source of the transfer)",
+            "SECURITY: Verifies user transferred tokens from their ATA"
+          ],
+          "writable": true
+        },
+        {
           "name": "token_mint"
         },
         {

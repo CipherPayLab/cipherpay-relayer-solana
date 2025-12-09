@@ -17,7 +17,7 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BASE_URL = process.env.E2E_BASE_URL || "http://localhost:3000";
+const BASE_URL = process.env.E2E_BASE_URL || "http://localhost:4000";
 const AUTH_TOKEN = process.env.DASHBOARD_TOKEN || process.env.API_TOKEN || "supersecret";
 const HMAC_KEY_ID = process.env.API_KEY_ID || "";
 const HMAC_SECRET = process.env.API_KEY_SECRET || "";
