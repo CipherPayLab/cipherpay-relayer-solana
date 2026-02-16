@@ -14,6 +14,7 @@ Sync with other projects
    npm run copy-proof-artifacts-to-relayer under cipherpay-circuits
 5. npm run build
 6. start database
+   docker compose down -v
    docker compose up -d db
    npm run migrate : Create tables and views by using src/db/migrations/001_init.sql
    npm run init-tree : Initialize all tables
@@ -23,15 +24,15 @@ Sync with other projects
 10. INDEX=1 npm run test:e2e:withdrawata
 11. check db
     SELECT k, LENGTH(v) AS len, HEX(v) AS hex FROM merkle_meta WHERE tree_id = 1 AND k = 'roots_next_slot';
-    SELECT k, LENGTH(v) AS len, HEX(v) AS hex FROM merkle_meta WHERE tree_id = 1 AND k = 'root';
+    SELECT k, LENGTH(v) AS len, HEX(v) AS hex' FROM merkle_meta WHERE tree_id = 1 AND k = 'root';
     SELECT k, LENGTH(v) AS len, HEX(v) AS hex FROM merkle_meta WHERE tree_id = 1 AND k = 'next_index';
 
     SELECT * FROM nodes_all WHERE node_layer=0 limit 5;
     SELECT * FROM nodes_all WHERE node_layer=16 limit 5;
 
 12. debug
-    solana program show BCrt2kn5HR4B7CHEMSBacekhzVTKYhzAQAB5YNkr5kJf
-    solana logs BCrt2kn5HR4B7CHEMSBacekhzVTKYhzAQAB5YNkr5kJf -u localhost
+    solana program show 24gZSJMyGiAbaTcBEm9WZyfq9TvkJJDQWake7uNHvPKj
+    solana logs 24gZSJMyGiAbaTcBEm9WZyfq9TvkJJDQWake7uNHvPKj -u localhost
 
 ---
 

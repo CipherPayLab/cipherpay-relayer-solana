@@ -3,7 +3,7 @@
  * Troubleshooting parser for Anchor events
  *
  * Usage:
- *   export PROGRAM_ID=BCrt2kn5HR4B7CHEMSBacekhzVTKYhzAQAB5YNkr5kJf
+ *   export PROGRAM_ID=24gZSJMyGiAbaTcBEm9WZyfq9TvkJJDQWake7uNHvPKj
  *   export SOLANA_URL=http://127.0.0.1:8899
  *   node scripts/parse-events.mjs <tx-signature> [--publics-le s0,...,s6] [--roots-be old,new]
  */
