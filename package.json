@@ -6,16 +6,13 @@
   "scripts": {
     "migrate": "tsx scripts/migrate.ts",
     "init-tree": "tsx scripts/init-canonical-tree.ts",
-
     "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/src/index.js",
-
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "test:mysql": "node --experimental-vm-modules node_modules/jest/bin/jest.js tests/merkle/mysql-merkle-store.test.ts",
-
     "test:e2e:deposit": "vitest run tests/e2e/deposit/deposit.test.ts",
     "test:e2e:depositata": "vitest run tests/e2e/deposit/depositata.test.ts",
     "test:e2e:transfer": "vitest run tests/e2e/transfer/transfer.test.ts",
@@ -62,7 +59,7 @@
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "tsc-alias": "^1.8.16",
-    "tsx": "^4.20.6",
+    "tsx": "^4.21.0",
     "typescript": "^5.5.4",
     "vitest": "^3.2.4"
   }

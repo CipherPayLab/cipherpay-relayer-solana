@@ -39,7 +39,7 @@ const DB_CONFIG = {
   port:     Number(process.env.MYSQL_PORT || 3306),
   user:     process.env.MYSQL_USER     || "root",
   password: process.env.MYSQL_PASSWORD || "",
-  database: process.env.MYSQL_DATABASE || "cipherpay",
+  database: process.env.MYSQL_DB || process.env.MYSQL_DATABASE || "cipherpay_relayer_solana",
 };
 
 /* ────────────────────────────────────────────────────────────────────────── */
@@ -197,10 +197,14 @@ async function main() {
   try {
     await ensureTables(conn);
 
-    // Session optimizations
-    await conn.query("SET SESSION foreign_key_checks = 0");
-    await conn.query("SET SESSION unique_checks = 0");
-    await conn.query("SET SESSION sql_log_bin = 0");
+    // Session optimizations (optional; may require SUPER for sql_log_bin)
+    try {
+      await conn.query("SET SESSION foreign_key_checks = 0");
+      await conn.query("SET SESSION unique_checks = 0");
+      await conn.query("SET SESSION sql_log_bin = 0");
+    } catch (e: any) {
+      console.log("   (session optimizations skipped: " + (e?.message || e) + ")");
+    }
 
     await conn.beginTransaction();
 
