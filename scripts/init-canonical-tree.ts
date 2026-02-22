@@ -197,13 +197,13 @@ async function main() {
   try {
     await ensureTables(conn);
 
-    // Session optimizations (best-effort; some require SUPER e.g. sql_log_bin)
+    // Session optimizations (optional; may require SUPER for sql_log_bin)
     try {
       await conn.query("SET SESSION foreign_key_checks = 0");
       await conn.query("SET SESSION unique_checks = 0");
       await conn.query("SET SESSION sql_log_bin = 0");
-    } catch (_) {
-      // Ignore if user lacks privilege (e.g. no SUPER for sql_log_bin)
+    } catch (e: any) {
+      console.log("   (session optimizations skipped: " + (e?.message || e) + ")");
     }
 
     await conn.beginTransaction();

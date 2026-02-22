@@ -13,8 +13,7 @@ Sync with other projects
 4. copy _\_final.zkey and _.wasm from cipherpay-circuits/build/{deposit,transfer,withdraw}/{deposit_js, transfer_js,withdraw_js}/ to cipherpay-relayer-solana/tests/e2e/{deposit,transfer,withdraw}/proof
    npm run copy-proof-artifacts-to-relayer under cipherpay-circuits
 5. npm run build
-6. start database
-   docker compose down -v
+6. start database - replaced by doc/scripts/docker-compose.yml
    docker compose up -d db
    npm run migrate : Create tables and views by using src/db/migrations/001_init.sql
    npm run init-tree : Initialize all tables
