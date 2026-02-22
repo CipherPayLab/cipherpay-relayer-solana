@@ -1,5 +1,5 @@
 {
-  "address": "BCrt2kn5HR4B7CHEMSBacekhzVTKYhzAQAB5YNkr5kJf",
+  "address": "24gZSJMyGiAbaTcBEm9WZyfq9TvkJJDQWake7uNHvPKj",
   "metadata": {
     "name": "cipherpay_anchor",
     "version": "0.1.0",
@@ -216,6 +216,14 @@
         },
         {
           "name": "vault_token_account",
+          "writable": true
+        },
+        {
+          "name": "user_token_account",
+          "docs": [
+            "User's token account (source of the transfer)",
+            "SECURITY: Verifies user transferred tokens from their ATA"
+          ],
           "writable": true
         },
         {
@@ -1051,17 +1059,79 @@
     {
       "name": "NullifierRecord",
       "docs": [
-        "Optional on-chain nullifier record (if you decide to persist spent notes)."
+        "On-chain nullifier record with audit trail.",
+        "Stores merkle root and timing information for permanent verification,",
+        "eliminating dependency on transaction logs which get pruned.",
+        "",
+        "Privacy: Commitments are NOT stored to preserve transaction privacy.",
+        "Only merkle roots (which don't reveal individual commitments) are stored."
       ],
       "type": {
         "kind": "struct",
         "fields": [
           {
             "name": "used",
+            "docs": [
+              "Whether this nullifier has been consumed (spent)."
+            ],
             "type": "bool"
           },
           {
             "name": "bump",
+            "docs": [
+              "PDA bump."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "spent_slot",
+            "docs": [
+              "Slot when this nullifier was first marked spent."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "spent_unix_ts",
+            "docs": [
+              "Unix timestamp (seconds) when this nullifier was marked spent.",
+              "Sourced from the Clock sysvar."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "merkle_root_before",
+            "docs": [
+              "=== Audit Trail Fields (for permanent on-chain verification) ===",
+              "Merkle root that was proven in the ZK proof (before transaction)",
+              "This is the \"old root\" from the circuit - proves the spent note existed"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "merkle_root_after",
+            "docs": [
+              "Final merkle root after all insertions (after transaction)",
+              "For transfer: root after both out1 and out2 insertions",
+              "For withdraw: same as merkle_root_before (no new commitments)"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "event_type",
+            "docs": [
+              "Event type: 0=unknown, 1=transfer, 2=withdraw",
+              "Helps auditors distinguish between transaction types"
+            ],
             "type": "u8"
           }
         ]

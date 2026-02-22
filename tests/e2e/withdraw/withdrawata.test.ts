@@ -43,7 +43,7 @@ function readSharedMint(): { mint: string; decimals: number } {
 
 const { mint: MINT_ADDRESS } = readSharedMint();
 
-const BASE_URL = process.env.E2E_BASE_URL || "http://localhost:3000";
+const BASE_URL = process.env.E2E_BASE_URL || "http://localhost:4000";
 const AUTH_TOKEN =
   process.env.DASHBOARD_TOKEN || process.env.API_TOKEN || "supersecret";
 const HMAC_KEY_ID = process.env.API_KEY_ID || "";

@@ -385,6 +385,13 @@ export default class TxManager {
     // Memo matches anchor test
     preIxs.push(this.memoIxUtf8("deposit:" + depositHashHexLE));
 
+    // SECURITY FIX: Determine user token account (source of transfer)
+    // - In delegate mode: use client's ATA
+    // - In default mode: use relayer's payer ATA
+    const userTokenAccount = args.source?.useDelegate
+      ? args.source.sourceTokenAccount
+      : payerAta;
+
     const run = () =>
       (this.program as any).methods
         .shieldedDepositAtomic(
@@ -399,6 +406,7 @@ export default class TxManager {
           depositMarker: depositMarkerPda,
           vaultPda: vaultOwnerPda,
           vaultTokenAccount: vaultAta,
+          userTokenAccount,  // SECURITY: Source account for transfer verification
           tokenMint: args.mint,
           instructions: anchor.web3.SYSVAR_INSTRUCTIONS_PUBKEY,
           systemProgram: SystemProgram.programId,

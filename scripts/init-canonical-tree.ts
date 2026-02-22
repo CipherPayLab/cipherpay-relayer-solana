@@ -240,7 +240,9 @@ async function main() {
       await conn.query("SET SESSION foreign_key_checks = 1");
       await conn.query("SET SESSION unique_checks = 1");
       await conn.query("SET SESSION sql_log_bin = 1");
-    } catch {}
+    } catch {
+      // Ignore restore errors
+    }
     await conn.end();
   }
 }
