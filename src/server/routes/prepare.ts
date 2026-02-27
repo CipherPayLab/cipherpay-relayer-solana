@@ -37,11 +37,11 @@ export function prepareRouter(tree: CanonicalTree) {
   // - out2PathElements/Indices: zero-path at nextLeafIndex+1 (for OUT2 insert)
   // - leafIndex: actual index of inCommitment
   // - nextLeafIndex: cursor before transfer (will advance by +2 on success)
-  r.post("/transfer", async (req, res, next) => {
+  r.post("/transfer", async (req, res) => {
     try {
       const { inCommitment } = req.body ?? {};
       if (!inCommitment) {
-        return res.status(400).json({ error: "missing inCommitment" });
+        return res.status(400).json({ ok: false, error: "MissingInCommitment", message: "missing inCommitment" });
       }
 
       // Path to the SPENT note
@@ -70,15 +70,23 @@ export function prepareRouter(tree: CanonicalTree) {
         // cursor before insertion
         nextLeafIndex: nextIndex,
       });
-    } catch (e) { next(e); }
+    } catch (e: any) {
+      const message = e?.message ?? String(e);
+      const status = message === "commitment not found" ? 404 : 500;
+      return res.status(status).json({
+        ok: false,
+        error: message === "commitment not found" ? "CommitmentNotFound" : "InternalError",
+        message,
+      });
+    }
   });
 
   // POST /api/v1/prepare/withdraw
   // body: { spendCommitment: string }
-  r.post("/withdraw", async (req, res, next) => {
+  r.post("/withdraw", async (req, res) => {
     try {
       const { spendCommitment } = req.body ?? {};
-      if (!spendCommitment) return res.status(400).json({ error: "missing spendCommitment" });
+      if (!spendCommitment) return res.status(400).json({ ok: false, error: "MissingSpendCommitment", message: "missing spendCommitment" });
 
       const path = await tree.getPathByCommitment(toBig(spendCommitment));
       const root = await tree.getRoot();
@@ -89,7 +97,15 @@ export function prepareRouter(tree: CanonicalTree) {
         pathIndices: path.pathIndices,
         leafIndex: path.index,
       });
-    } catch (e) { next(e); }
+    } catch (e: any) {
+      const message = e?.message ?? String(e);
+      const status = message === "commitment not found" ? 404 : 500;
+      return res.status(status).json({
+        ok: false,
+        error: message === "commitment not found" ? "CommitmentNotFound" : "InternalError",
+        message,
+      });
+    }
   });
 
   return r;
