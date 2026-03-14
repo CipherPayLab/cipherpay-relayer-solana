@@ -7,8 +7,11 @@
  *   - fe      : 32-byte Buffer in Big-Endian (bigIntToBe32)
  *   - fe_hex  : lowercase hex string derived from fe (feHex)
  *
- * merkle_meta rows:
- *   - depth (u8), next_index (u64 LE = 0), root (BE bytes), zero (BE bytes)
+ * merkle_meta uses key-value rows (tree_id, k, v):
+ *   - k='depth' (u8), k='next_index' (u64 LE=0), k='root' (BE 32b), k='zero' (BE 32b), k='roots_next_slot' (u8=0)
+ *
+ * Note: The v column is VARBINARY. In SQL clients, SELECT * shows v as blank/BLOB.
+ * To inspect: SELECT k, LENGTH(v), HEX(v) FROM merkle_meta WHERE tree_id=1;
  */
 
 import path from "path";
@@ -81,36 +84,28 @@ async function clearTree(conn: mysql.Connection) {
   await conn.execute("DELETE FROM merkle_meta WHERE tree_id = ?", [TREE_ID]);
 }
 
-/** Insert BE-only metadata: depth (u8), next_index (u64 LE=0), root (BE), zero (BE). */
+/** Insert BE-only metadata: depth (u8), next_index (u64 LE=0), root (BE), zero (BE), roots_next_slot (u8=0). */
 async function insertMetadata(conn: mysql.Connection, zeroHashes: bigint[]) {
   const depthBuf   = Buffer.from([TREE_DEPTH & 0xff]); // u8
   const nextIdxBuf = Buffer.alloc(8, 0);               // u64 LE = 0
   const rootBuf    = bigIntToBe32(zeroHashes[TREE_DEPTH]);
   const zeroBuf    = bigIntToBe32(zeroHashes[0]);
+  const rootsNextSlotBuf = Buffer.from([0]);           // u8 = 0 (slot 0 is next)
 
   const rows: [number, string, Buffer, string][] = [
-    [TREE_ID, "depth",      depthBuf,   ""],
-    [TREE_ID, "next_index", nextIdxBuf, ""],
-    [TREE_ID, "root",       rootBuf,    feHex(rootBuf)],
-    [TREE_ID, "zero",       zeroBuf,    feHex(zeroBuf)],
+    [TREE_ID, "depth",           depthBuf,        ""],
+    [TREE_ID, "next_index",      nextIdxBuf,      ""],
+    [TREE_ID, "root",            rootBuf,         feHex(rootBuf)],
+    [TREE_ID, "zero",            zeroBuf,         feHex(zeroBuf)],
+    [TREE_ID, "roots_next_slot", rootsNextSlotBuf, ""],
   ];
 
-  // Use a VALUES list that includes fe_hex for binary rows and empty for scalar rows
+  // Schema has (tree_id, k, v) only; v_hex does not exist in 001_init.sql
+  const fallbackRows = rows.map(([a, b, c]) => [a, b, c]);
   await conn.query(
-    "INSERT INTO merkle_meta (tree_id, k, v, v_hex) VALUES ?",
-    [rows]
-  ).catch(async (e: any) => {
-    // If your schema doesn't have v_hex, fall back to original 3-column form.
-    if (String(e?.message || "").toLowerCase().includes("unknown column 'v_hex'")) {
-      const fallbackRows = rows.map(([a, b, c]) => [a, b, c]);
-      await conn.query(
-        "INSERT INTO merkle_meta (tree_id, k, v) VALUES ?",
-        [fallbackRows]
-      );
-    } else {
-      throw e;
-    }
-  });
+    "INSERT INTO merkle_meta (tree_id, k, v) VALUES ?",
+    [fallbackRows]
+  );
 }
 
 /** Insert all internal nodes per level with the canonical **BE** zero hash for that level. */
@@ -216,6 +211,13 @@ async function main() {
 
     console.log("📝 Inserting metadata (BE root/zero)...");
     await insertMetadata(conn, zeroHashesBig);
+
+    // Verify merkle_meta: v is VARBINARY so it appears blank in raw SELECT *; use HEX(v) to inspect
+    const [metaRows] = await conn.query(
+      "SELECT k, LENGTH(v) AS len, HEX(v) AS hex FROM merkle_meta WHERE tree_id = ?",
+      [TREE_ID]
+    ) as any;
+    console.log("   merkle_meta inserted:", metaRows?.map((r: any) => `${r.k}(len=${r.len})`).join(", ") || "none");
 
     console.log("🌳 Inserting nodes (bulk, BE)...");
     const totalNodes = await insertNodesBulk(conn, zeroHashesBig);

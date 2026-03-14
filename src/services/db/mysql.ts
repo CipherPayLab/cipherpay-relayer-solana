@@ -1,5 +1,5 @@
 // src/services/db/mysql.ts
-import mysql, { Pool } from "mysql2/promise";
+import mysql, { Pool } from "mysql2/promise.js";
 import { loadEnv } from "@/services/config/env.js";
 
 let _pool: Pool | null = null;
