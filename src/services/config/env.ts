@@ -15,7 +15,7 @@ export function loadEnv() {
     },
     rpcUrl: process.env.SOLANA_RPC_URL ?? "http://127.0.0.1:8899",
     solanaRpcUrl: process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com",
-    programId: process.env.PROGRAM_ID ?? "24gZSJMyGiAbaTcBEm9WZyfq9TvkJJDQWake7uNHvPKj",
+    programId: process.env.PROGRAM_ID ?? "WRy4hstBsD6hxb7CJN4R3fgLnafs621N7EjUhZ2afze",
     idlPath: process.env.IDL_PATH ?? "./src/idl/cipherpay_anchor.json",
     skipAnchor: process.env.RELAYER_SKIP_ANCHOR ?? "0",
     authMode: (process.env.AUTH_MODE ?? "jwt") as "jwt" | "hmac",

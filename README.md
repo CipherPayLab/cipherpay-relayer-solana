@@ -30,8 +30,8 @@ Sync with other projects
     SELECT * FROM nodes_all WHERE node_layer=16 limit 5;
 
 12. debug
-    solana program show 24gZSJMyGiAbaTcBEm9WZyfq9TvkJJDQWake7uNHvPKj
-    solana logs 24gZSJMyGiAbaTcBEm9WZyfq9TvkJJDQWake7uNHvPKj -u localhost
+    solana program show WRy4hstBsD6hxb7CJN4R3fgLnafs621N7EjUhZ2afze
+    solana logs WRy4hstBsD6hxb7CJN4R3fgLnafs621N7EjUhZ2afze -u localhost
 
 ---
 

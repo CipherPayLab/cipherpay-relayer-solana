@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/cipherpay_anchor.json`.
  */
 export type CipherpayAnchor = {
-  "address": "24gZSJMyGiAbaTcBEm9WZyfq9TvkJJDQWake7uNHvPKj",
+  "address": "WRy4hstBsD6hxb7CJN4R3fgLnafs621N7EjUhZ2afze",
   "metadata": {
     "name": "cipherpayAnchor",
     "version": "0.1.0",
