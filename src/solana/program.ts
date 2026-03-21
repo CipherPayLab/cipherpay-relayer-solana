@@ -5,6 +5,7 @@ import { Connection, Keypair, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.j
 import { AnchorProvider, Program, Wallet, Idl } from "@coral-xyz/anchor";
 import type { CipherpayAnchor } from "../types/cipherpay_anchor.js";
 import { loadEnv } from "@/services/config/env.js";
+import { shouldAttemptAutoAirdrop } from "@/solana/airdrop-policy.js";
 
 type AnyIdl = Record<string, any>;
 
@@ -35,7 +36,15 @@ async function ensureProviderFunds(connection: Connection, pubkey: PublicKey) {
     const bal = await connection.getBalance(pubkey, "confirmed");
     if (bal >= 0.5 * LAMPORTS_PER_SOL) return;
 
-    // Airdrop wherever it’s supported (local validator, devnet, testnet).
+    if (!shouldAttemptAutoAirdrop(connection.rpcEndpoint)) {
+      console.warn(
+        `Skipping auto-airdrop for ${pubkey.toBase58()}: fund this wallet manually, ` +
+          `or set RELAYER_ALLOW_AUTO_AIRDROP=1 (non-local RPC).`
+      );
+      return;
+    }
+
+    // Airdrop on local validator by default; devnet/testnet only if explicitly allowed.
     const sig = await connection.requestAirdrop(pubkey, 2 * LAMPORTS_PER_SOL);
     const bh = await connection.getLatestBlockhash();
     await connection.confirmTransaction({ signature: sig, ...bh }, "confirmed");

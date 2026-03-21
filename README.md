@@ -92,6 +92,14 @@ Creates tables:
 npm run dev
 ```
 
+### Relayer wallet & SOL (auto-airdrop)
+
+The relayer signs with **`ANCHOR_WALLET`** (default `~/.config/solana/id.json`). Deposits require enough SOL on that key for fees, ATA rent, and (for native SOL) wrapping.
+
+- **Local validator** (`http://127.0.0.1:8899` / `localhost`): the relayer may **auto-airdrop** when balance is low.
+- **Devnet / testnet / remote RPC**: auto-airdrop is **off by default** (avoids faucet **429** rate limits). **Fund the relayer key** manually (e.g. [faucet.solana.com](https://faucet.solana.com)).
+- To opt back into public-faucet `requestAirdrop` on non-local clusters, set **`RELAYER_ALLOW_AUTO_AIRDROP=1`** in `.env` (legacy alias: `ALLOW_DEVNET_AIRDROP=1`).
+
 ### 5. Production build
 
 ```bash

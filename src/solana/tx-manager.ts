@@ -8,6 +8,7 @@ import {
   TransactionInstruction,
   ComputeBudgetProgram,
 } from "@solana/web3.js";
+import { shouldAttemptAutoAirdrop } from "@/solana/airdrop-policy.js";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
@@ -72,6 +73,16 @@ export default class TxManager {
       commitment: "confirmed",
     });
     if (bal >= minLamports) return;
+
+    const rpc = this.connection.rpcEndpoint;
+    if (!shouldAttemptAutoAirdrop(rpc)) {
+      throw new Error(
+        `Relayer wallet ${payer.toBase58()} has insufficient SOL: balance=${bal} lamports, ` +
+          `need>=${minLamports}. Fund the key used by ANCHOR_WALLET (or default ~/.config/solana/id.json). ` +
+          `For local validator only, airdrop is used automatically. To allow public cluster faucets ` +
+          `(devnet/testnet; subject to rate limits), set RELAYER_ALLOW_AUTO_AIRDROP=1.`
+      );
+    }
 
     const want = Math.max(120_000_000, minLamports * 2);
     const sig = await this.connection.requestAirdrop(payer, want);
