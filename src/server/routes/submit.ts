@@ -81,10 +81,7 @@ export const submit = Router();
 /* -------------------- DEPOSIT -------------------- */
 
 // POST /api/v1/submit/deposit
-// Optional extras (strings):
-// - sourceOwner: base58
-// - sourceTokenAccount: base58
-// - useDelegate: boolean
+// Required: sourceTokenAccount (user ATA). Optional: sourceOwner (else resolved on-chain).
 submit.post("/deposit", async (req, res) => {
   const requestId = (req as any).requestId || "";
   try {
@@ -107,10 +104,8 @@ submit.post("/deposit", async (req, res) => {
       publicSignals,
       proofBytes,
       publicInputsBytes,
-      // NEW (optional)
       sourceOwner,
       sourceTokenAccount,
-      useDelegate,
     } = req.body || {};
 
     if (!amount || !tokenMint) {
@@ -121,6 +116,15 @@ submit.post("/deposit", async (req, res) => {
           error: "BadRequest",
           message: "amount and tokenMint required",
         });
+    }
+
+    if (!sourceTokenAccount || String(sourceTokenAccount).trim() === "") {
+      return res.status(400).json({
+        ok: false,
+        error: "BadRequest",
+        message:
+          "sourceTokenAccount required (user token ATA; deposits are SPL-delegate only)",
+      });
     }
 
     let proofBin: Buffer;
@@ -180,19 +184,17 @@ submit.post("/deposit", async (req, res) => {
       publics5_hash_hex: depHashLE,
       sourceOwner,
       sourceTokenAccount,
-      useDelegate: !!useDelegate,
     });
 
-    // Pass strings/flags only; tx-manager converts to PublicKey at the edge.
     const relayerArgs: any = {
       amount: BigInt(amount),
       tokenMint,
       proofBytes: proofBin,
       publicInputsBytes: publicsBin,
-      source:
-        sourceOwner || sourceTokenAccount || typeof useDelegate === "boolean"
-          ? { sourceOwner, sourceTokenAccount, useDelegate: !!useDelegate }
-          : undefined,
+      source: {
+        ...(sourceOwner ? { sourceOwner } : {}),
+        sourceTokenAccount,
+      },
     };
 
     const out = await (solanaRelayer as any).submitDepositWithBin(relayerArgs);

@@ -6,6 +6,7 @@ import { Program, AnchorProvider, web3 } from "@coral-xyz/anchor";
 import fs from "node:fs";
 import idl from "@/idl/cipherpay_anchor.json" with { type: "json" };
 import TxManager from "@/solana/tx-manager.js";
+import { getAccount } from "@solana/spl-token";
 
 // DB + Merkle store
 import { getPool } from "@/services/db/mysql.js";
@@ -65,10 +66,10 @@ export type DepositBinArgs = {
   tokenMint: string; // base58
   proofBytes: Buffer; // 256 bytes
   publicInputsBytes: Buffer; // 7*32 bytes
-  source?: {
+  /** User token ATA; funds move from here via SPL delegate. sourceOwner optional (resolved on-chain). */
+  source: {
     sourceOwner?: string; // base58
-    sourceTokenAccount?: string; // base58
-    useDelegate?: boolean;
+    sourceTokenAccount: string; // base58
   };
 };
 
@@ -441,28 +442,32 @@ class SolanaRelayer {
     expectLen("deposit.proofBytes", args.proofBytes, 256);
     expectLen("deposit.publicInputsBytes", args.publicInputsBytes, 7 * 32);
     const mint = new web3.PublicKey(args.tokenMint);
-    
-    // Convert source parameters from strings to PublicKeys if provided
-    let source: {
-      sourceOwner: web3.PublicKey;
-      sourceTokenAccount: web3.PublicKey;
-      useDelegate?: boolean;
-    } | undefined = undefined;
-    
-    if (args.source && args.source.useDelegate && args.source.sourceOwner && args.source.sourceTokenAccount) {
-      source = {
-        sourceOwner: new web3.PublicKey(args.source.sourceOwner),
-        sourceTokenAccount: new web3.PublicKey(args.source.sourceTokenAccount),
-        useDelegate: args.source.useDelegate,
-      };
+
+    if (!args.source?.sourceTokenAccount) {
+      throw new Error(
+        "Deposit requires source.sourceTokenAccount (user token ATA for SPL delegate transfer)",
+      );
     }
-    
+
+    const sourceTokenAccount = new web3.PublicKey(args.source.sourceTokenAccount);
+    let sourceOwner: web3.PublicKey;
+    if (args.source.sourceOwner) {
+      sourceOwner = new web3.PublicKey(args.source.sourceOwner);
+    } else {
+      const acc = await getAccount(
+        this.provider.connection,
+        sourceTokenAccount,
+        "confirmed",
+      );
+      sourceOwner = acc.owner;
+    }
+
     const sig = await this.txm.submitShieldedDepositAtomicBytes({
       mint,
       amount: args.amount,
       proofBytes: args.proofBytes,
       publicInputsBytes: args.publicInputsBytes,
-      source,
+      source: { sourceOwner, sourceTokenAccount },
     });
     return { signature: sig };
   }

@@ -16,7 +16,6 @@ import {
   ACCOUNT_SIZE as TOKEN_ACCOUNT_SIZE,
   createAssociatedTokenAccountIdempotentInstruction,
   getAssociatedTokenAddressSync,
-  createSyncNativeInstruction,
   createTransferCheckedInstruction,
   getAccount,
   getMint,
@@ -139,26 +138,18 @@ export default class TxManager {
       .instruction();
   }
 
-  private async buildSetupIxs(
+  /** Vault ATA + root cache only. Deposits are always user-delegate funded (no relayer token ATA). */
+  private async buildDepositVaultSetupIxs(
     payer: PublicKey,
     mint: PublicKey,
     vaultOwnerPda: PublicKey,
-    amount: BN,
     rootCachePda: PublicKey
   ): Promise<{
     ixs: TransactionInstruction[];
-    payerAta: PublicKey;
     vaultAta: PublicKey;
   }> {
     const ixs: TransactionInstruction[] = [];
 
-    const payerAta = getAssociatedTokenAddressSync(
-      mint,
-      payer,
-      false,
-      TOKEN_PROGRAM_ID,
-      ASSOCIATED_TOKEN_PROGRAM_ID
-    );
     const vaultAta = getAssociatedTokenAddressSync(
       mint,
       vaultOwnerPda,
@@ -170,18 +161,6 @@ export default class TxManager {
     const initRoot = await this.maybeInitRootCacheIx(rootCachePda, payer);
     if (initRoot) ixs.push(initRoot);
 
-    if (!(await this.accountExists(payerAta))) {
-      ixs.push(
-        createAssociatedTokenAccountIdempotentInstruction(
-          payer,
-          payerAta,
-          payer,
-          mint,
-          TOKEN_PROGRAM_ID,
-          ASSOCIATED_TOKEN_PROGRAM_ID
-        )
-      );
-    }
     if (!(await this.accountExists(vaultAta))) {
       ixs.push(
         createAssociatedTokenAccountIdempotentInstruction(
@@ -195,18 +174,7 @@ export default class TxManager {
       );
     }
 
-    if (mint.equals(NATIVE_MINT) && amount.gt(new BN(0))) {
-      ixs.push(
-        SystemProgram.transfer({
-          fromPubkey: payer,
-          toPubkey: payerAta,
-          lamports: Number(amount),
-        }),
-        createSyncNativeInstruction(payerAta)
-      );
-    }
-
-    return { ixs, payerAta, vaultAta };
+    return { ixs, vaultAta };
   }
 
   /** Idempotently ensure root cache + both ATAs (vault & recipient) exist for withdraw. */
@@ -272,20 +240,16 @@ export default class TxManager {
 
   /**
    * Submit deposit with **binary** proof + publics.
-   * Supports two funding modes:
-   *   (A) default: pull from relayer payer ATA
-   *   (B) delegated: pull from client ATA via SPL delegate (source.*)
+   * Funds always come from the user's token ATA via SPL delegate (relayer signs as delegate).
    */
   async submitShieldedDepositAtomicBytes(args: {
     mint: PublicKey;
     amount: bigint | number | BN;
     proofBytes: Buffer;
     publicInputsBytes: Buffer;
-    source?: {
-      // optional delegate-mode
+    source: {
       sourceOwner: PublicKey;
       sourceTokenAccount: PublicKey;
-      useDelegate?: boolean; // if true => validate delegate + pull from sourceTokenAccount
     };
   }): Promise<string> {
     const payer = this.provider.wallet.publicKey;
@@ -309,7 +273,8 @@ export default class TxManager {
     );
     const amountBN = bn(args.amount);
     const cushion = 40_000_000;
-    const minNeeded = Number(amountBN) + rentAta * 2 + cushion;
+    // Relayer pays tx fees + vault ATA rent if needed, not the deposit amount.
+    const minNeeded = rentAta * 2 + cushion + 10_000_000;
     await this.ensurePayerFunds(minNeeded);
 
     const treePda = pda([TREE_SEED], this.programId);
@@ -322,86 +287,59 @@ export default class TxManager {
 
     const mintDecimals = await this.getMintDecimals(args.mint);
 
-    // Stage A — setup (always ensure vault ATA + root cache)
-    const {
-      ixs: setupIxs,
-      payerAta,
-      vaultAta,
-    } = await this.buildSetupIxs(
+    // Stage A — vault ATA + root cache (relayer pays rent creation if needed)
+    const { ixs: setupIxs, vaultAta } = await this.buildDepositVaultSetupIxs(
       payer,
       args.mint,
       vaultOwnerPda,
-      amountBN,
       rootCachePda
     );
-    // In delegate mode we don't need relayer payer ATA existence, but it's already idempotent.
 
     await this.sendIxs(setupIxs);
 
-    // Stage B — transfer (choose mode)
+    const src = args.source;
+
+    // Stage B — transfer from user ATA (delegate) → vault
     const preIxs: TransactionInstruction[] = [];
 
     if (amountBN.gt(new BN(0))) {
-      if (args.source?.useDelegate) {
-        // Validate client ATA + delegate allowance
-        const srcAcc = await getAccount(
-          this.connection,
-          args.source.sourceTokenAccount,
-          "confirmed"
-        );
-        if (!srcAcc.owner.equals(args.source.sourceOwner)) {
-          throw new Error("sourceTokenAccount.owner mismatch with sourceOwner");
-        }
-        if (!srcAcc.mint.equals(args.mint)) {
-          throw new Error("sourceTokenAccount.mint mismatch with tokenMint");
-        }
-        if (!srcAcc.delegate || !srcAcc.delegate.equals(payer)) {
-          throw new Error(
-            "sourceTokenAccount.delegate is not the relayer wallet"
-          );
-        }
-        const delegated = BigInt(srcAcc.delegatedAmount.toString());
-        if (delegated < BigInt(amountBN.toString())) {
-          throw new Error(
-            `delegatedAmount ${delegated} < required ${amountBN.toString()}`
-          );
-        }
-
-        // Transfer from client's ATA with relayer signing as delegate
-        preIxs.push(
-          createTransferCheckedInstruction(
-            args.source.sourceTokenAccount,
-            args.mint,
-            vaultAta,
-            payer, // delegate authority (relayer)
-            BigInt(amountBN.toString()),
-            mintDecimals
-          )
-        );
-      } else {
-        // Default: transfer from relayer payer ATA
-        preIxs.push(
-          createTransferCheckedInstruction(
-            payerAta,
-            args.mint,
-            vaultAta,
-            payer,
-            BigInt(amountBN.toString()),
-            mintDecimals
-          )
+      const srcAcc = await getAccount(
+        this.connection,
+        src.sourceTokenAccount,
+        "confirmed"
+      );
+      if (!srcAcc.owner.equals(src.sourceOwner)) {
+        throw new Error("sourceTokenAccount.owner mismatch with sourceOwner");
+      }
+      if (!srcAcc.mint.equals(args.mint)) {
+        throw new Error("sourceTokenAccount.mint mismatch with tokenMint");
+      }
+      if (!srcAcc.delegate || !srcAcc.delegate.equals(payer)) {
+        throw new Error("sourceTokenAccount.delegate is not the relayer wallet");
+      }
+      const delegated = BigInt(srcAcc.delegatedAmount.toString());
+      if (delegated < BigInt(amountBN.toString())) {
+        throw new Error(
+          `delegatedAmount ${delegated} < required ${amountBN.toString()}`
         );
       }
+
+      preIxs.push(
+        createTransferCheckedInstruction(
+          src.sourceTokenAccount,
+          args.mint,
+          vaultAta,
+          payer,
+          BigInt(amountBN.toString()),
+          mintDecimals
+        )
+      );
     }
 
     // Memo matches anchor test
     preIxs.push(this.memoIxUtf8("deposit:" + depositHashHexLE));
 
-    // SECURITY FIX: Determine user token account (source of transfer)
-    // - In delegate mode: use client's ATA
-    // - In default mode: use relayer's payer ATA
-    const userTokenAccount = args.source?.useDelegate
-      ? args.source.sourceTokenAccount
-      : payerAta;
+    const userTokenAccount = src.sourceTokenAccount;
 
     const run = () =>
       (this.program as any).methods
