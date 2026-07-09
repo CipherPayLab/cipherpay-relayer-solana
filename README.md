@@ -26,12 +26,12 @@ Sync with other projects
     SELECT k, LENGTH(v) AS len, HEX(v) AS hex' FROM merkle_meta WHERE tree_id = 1 AND k = 'root';
     SELECT k, LENGTH(v) AS len, HEX(v) AS hex FROM merkle_meta WHERE tree_id = 1 AND k = 'next_index';
 
-    SELECT * FROM nodes_all WHERE node_layer=0 limit 5;
-    SELECT * FROM nodes_all WHERE node_layer=16 limit 5;
+    SELECT _ FROM nodes_all WHERE node_layer=0 limit 5;
+    SELECT _ FROM nodes_all WHERE node_layer=16 limit 5;
 
 12. debug
-    solana program show WRy4hstBsD6hxb7CJN4R3fgLnafs621N7EjUhZ2afze
-    solana logs WRy4hstBsD6hxb7CJN4R3fgLnafs621N7EjUhZ2afze -u localhost
+    solana program show AWVNBHaF1upXopq9dQpRpY54c9113bBskqiv16MUTDDd
+    solana logs AWVNBHaF1upXopq9dQpRpY54c9113bBskqiv16MUTDDd -u localhost
 
 ---
 
@@ -220,4 +220,3 @@ X-CipherPay-Signature: HMAC_SHA256(METHOD\nPATH\nTIMESTAMP\nSHA256(body))
 - Place Groth16 verification keys in `src/zk/circuits/*.json`.
 - Configure Merkle tree depth via `.env` → `CP_TREE_DEPTH` (e.g. 16 or 32).
 - `tree_id` reserved for multi-tree support in future versions.
-
